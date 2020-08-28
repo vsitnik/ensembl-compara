@@ -444,14 +444,33 @@ sub get_sequence {
     my $mask = shift;
 
     my $seq;
-    # Only reference dnafrags are dumped
+
+    # Reference dnafrags can have a Fasta file
     if ($self->dnafrag->is_reference && (my $faidx_helper = $self->genome_db->get_faidx_helper($mask))) {
         # Sequence names in the Fasta file are expected to be dnafrag_ids;
         # Coordinates are 0-based
         $seq = $faidx_helper->get_sequence2_no_length($self->dnafrag_id, $self->dnafrag_start-1, $self->dnafrag_end-1);
         die "sequence length doesn't match !" if CORE::length($seq) != ($self->dnafrag_end-$self->dnafrag_start+1);
         reverse_comp(\$seq) if $self->dnafrag_strand < 0;
-    } else {
+        return $seq;
+    }
+
+    # Non-reference dnafrags can have a Fasta file too, but require an adjustment of the coordinates
+    if (!$self->dnafrag->is_reference && (my $faidx_helper = $self->genome_db->get_faidx_helper($mask, 'non_ref'))) {
+        # Sequence names in the Fasta file are expected to be dnafrag_ids;
+        # Coordinates are 0-based
+        # Only the "alt region" is in the file
+        my $alt_locus = $self->dnafrag->get_alt_region;
+        if ($self->dnafrag_start >= $alt_locus->dnafrag_start and $self->dnafrag_end <= $alt_locus->dnafrag_end) {
+            $seq = $faidx_helper->get_sequence2_no_length($self->dnafrag_id, $self->dnafrag_start-$alt_locus->dnafrag_start, $self->dnafrag_end-$alt_locus->dnafrag_start);
+            die "sequence length doesn't match !" if CORE::length($seq) != ($self->dnafrag_end-$self->dnafrag_start+1);
+            reverse_comp(\$seq) if $self->dnafrag_strand < 0;
+            return $seq;
+        }
+    }
+
+    # If we haven't found a sequence, query the database via the Core API
+    {
         $self->genome_db->db_adaptor->dbc->prevent_disconnect( sub {
             if ($mask) {
                 if ($mask =~ /^soft/i) {
