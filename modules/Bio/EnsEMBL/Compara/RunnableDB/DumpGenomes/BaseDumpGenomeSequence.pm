@@ -64,11 +64,17 @@ sub fetch_input {
     # Where the files should be
     $self->param_required('genome_dumps_dir');
 
-    # The expected file size: DNA + line-returns + dnafrag name + ">" + line-return
+    # Explanations:
+    # - the number of line returns needed to wrap a sequence is: CEIL(length/line_width)
+    # - the size of the base 10 representation of an integer is: FLOOR(LOG10(number))+1
     my $sql;
     if ($self->param_required('is_reference')) {
+        # The sequence length is: length
+        # The header is: ">" + dnafrag_id + "\n"
         $sql = 'SELECT SUM(length + CEIL(length/?) + FLOOR(LOG10(dnafrag_id)) + 3) FROM dnafrag WHERE genome_db_id = ? AND is_reference = 1';
     } else {
+        # The sequence length is: dnafrag_end-dnafrag_start+1
+        # The header is: ">" + dnafrag_id + " " + dnafrag_start + ":" + dnafrag_end + "\n"
         $sql = 'SELECT SUM(dnafrag_end-dnafrag_start+1 + CEIL((dnafrag_end-dnafrag_start+1)/?) + FLOOR(LOG10(dnafrag_id)) + FLOOR(LOG10(dnafrag_start)) + FLOOR(LOG10(dnafrag_end)) + 7) FROM dnafrag JOIN dnafrag_alt_region USING (dnafrag_id) WHERE genome_db_id = ? AND is_reference = 0';
     }
     my ($ref_size) = $self->compara_dba->dbc->db_handle->selectrow_array($sql, undef, $self->param('seq_width'), $genome_db->dbID);
