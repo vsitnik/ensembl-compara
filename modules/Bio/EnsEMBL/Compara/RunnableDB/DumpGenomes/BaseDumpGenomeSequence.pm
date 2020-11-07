@@ -75,7 +75,7 @@ sub fetch_input {
     } else {
         # The sequence length is: dnafrag_end-dnafrag_start+1
         # The header is: ">" + dnafrag_id + " " + dnafrag_start + ":" + dnafrag_end + "\n"
-        $sql = 'SELECT SUM(dnafrag_end-dnafrag_start+1 + CEIL((dnafrag_end-dnafrag_start+1)/?) + FLOOR(LOG10(dnafrag_id)) + FLOOR(LOG10(dnafrag_start)) + FLOOR(LOG10(dnafrag_end)) + 7) FROM dnafrag JOIN dnafrag_alt_region USING (dnafrag_id) WHERE genome_db_id = ? AND is_reference = 0';
+        $sql = 'SELECT SUM(dnafrag_end-dnafrag_start+1 + CEIL((dnafrag_end-dnafrag_start+1)/?) + FLOOR(LOG10(dnafrag_id)) + FLOOR(LOG10(dnafrag_start)) + FLOOR(LOG10(dnafrag_end)) + 7) FROM dnafrag JOIN dnafrag_alt_region USING (dnafrag_id) WHERE genome_db_id = ? AND is_reference = 0 AND coord_system_name != "lrg"';
     }
     my ($ref_size) = $self->compara_dba->dbc->db_handle->selectrow_array($sql, undef, $self->param('seq_width'), $genome_db->dbID);
     $self->param('ref_size', $ref_size);
