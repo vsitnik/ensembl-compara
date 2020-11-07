@@ -65,8 +65,13 @@ sub fetch_input {
     $self->param_required('genome_dumps_dir');
 
     # The expected file size: DNA + line-returns + dnafrag name + ">" + line-return
-    my $sql = 'SELECT SUM(length + CEIL(length/?) + FLOOR(LOG10(dnafrag_id)) + 3) FROM dnafrag WHERE genome_db_id = ? AND is_reference = ?';
-    my ($ref_size) = $self->compara_dba->dbc->db_handle->selectrow_array($sql, undef, $self->param('seq_width'), $genome_db->dbID, $self->param_required('is_reference'));
+    my $sql;
+    if ($self->param_required('is_reference')) {
+        $sql = 'SELECT SUM(length + CEIL(length/?) + FLOOR(LOG10(dnafrag_id)) + 3) FROM dnafrag WHERE genome_db_id = ? AND is_reference = 1';
+    } else {
+        $sql = 'SELECT SUM(dnafrag_end-dnafrag_start+1 + CEIL((dnafrag_end-dnafrag_start+1)/?) + FLOOR(LOG10(dnafrag_id)) + FLOOR(LOG10(dnafrag_start)) + FLOOR(LOG10(dnafrag_end)) + 7) FROM dnafrag JOIN dnafrag_alt_region USING (dnafrag_id) WHERE genome_db_id = ? AND is_reference = 0';
+    }
+    my ($ref_size) = $self->compara_dba->dbc->db_handle->selectrow_array($sql, undef, $self->param('seq_width'), $genome_db->dbID);
     $self->param('ref_size', $ref_size);
 
     my $paths = $self->set_dump_paths();
